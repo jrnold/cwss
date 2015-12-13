@@ -3,12 +3,22 @@ import argparse
 import sqlite3
 import os
 import fnmatch
+import csv
 from os import path
 
 from sqlalchemy import (create_engine, Table, Column, MetaData, String, Float,
                         DateTime, Boolean, Integer, PrimaryKeyConstraint)
 
 metadata = MetaData()
+
+def clean_row(row):
+    for k, v in row.items():
+        if v == '':
+            row[k] = None
+        elif v == 'False':
+            row[k] = 0
+        elif v == 'True':
+            row[k] = 1
 
 table_Category = Table('Category', metadata,
     Column('PK_ID', Integer() , primary_key = True),
@@ -286,12 +296,12 @@ table_Prisoners_Andersonville = Table('Prisoners_Andersonville', metadata,
                                       Column('PRA_LASTNAME', String(15) ),
                                       Column('PRA_FIRSTNAME', String(13) ),
                                       Column('PRA_STATE', String(3) ),
-                                    Column('PRA_REGIMENT', String(3) ),
+                                      Column('PRA_REGIMENT', String(3) ),
                                       Column('PRA_RANK', String(10) ),
                                       Column('PRA_COMPANY', String(1) ),
                                       Column('PRA_FUNCTION', String(15) ),
                                       Column('PRA_CODE', String(5) ),
-                                    Column('PRA_REMARKS', String(255) ),
+                                      Column('PRA_REMARKS', String(255) ),
                                       Column('PRA_ALTNAME1', String(13) ),
                                       Column('PRA_ALTNAME2', String(13) ),
                                       Column('PRA_ALTNAME3', String(13) ),
@@ -593,19 +603,39 @@ table_Unititle = Table('Unititle', metadata,
     Column('COMMENTS', String(255)))
 
 
-def mssql_to_sqlite(args):
-    mssql_engine = create_engine("mssql+pyodbc://nps_cwss")
-    meta = MetaData()
-    meta.reflect(bind = mssql_engine)
-    sqlite_engine = create_engine("sqlite://:memory:")
-    
+# def mssql_to_sqlite(args):
+#     mssql_engine = create_engine("mssql+pyodbc://nps_cwss")
+#     meta = MetaData()
+#     meta.reflect(bind = mssql_engine)
+#     sqlite_engine = create_engine("sqlite://:memory:")
+
+def tsv_to_sqlite(filename, table):
+    ins = metadata.tables[table].insert()
+    con = metadata.bind.connect()
+    print("Loading %s into table %s" % (filename, table))
+    with open(filename, 'r') as f:
+        reader = csv.DictReader(f, delimiter = '\t')
+        for row in reader:
+            clean_row(row)
+            con.execute(ins, **row)
+
+def tsv_to_sqlite_multi(src, db):
+    engine = create_engine(db)
+    metadata.bind = engine
+    metadata.drop_all()
+    metadata.create_all()
+    for filename in os.listdir(src):
+        if fnmatch.fnmatch(filename, "*.tsv"):
+            fname = path.join(src, filename)
+            table = path.splitext(filename)[0]
+            tsv_to_sqlite(fname, table)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('src', metavar = 'SRC', help = 'directory with input tsv files')    
     parser.add_argument('db', metavar = 'DB', help = 'SQLite database')
     args = parser.parse_args()
-    #mssql_to_sqlite(args)
+    tsv_to_sqlite_multi(args.SRC, args.DB)
 
 if __name__ == '__main__':
     main()
