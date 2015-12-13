@@ -8,8 +8,6 @@ from os import path
 from sqlalchemy import (create_engine, Table, Column, MetaData, String, Float,
                         DateTime, Boolean, Integer, PrimaryKeyConstraint)
 
-import pandas
-
 metadata = MetaData()
 
 table_Category = Table('Category', metadata,
@@ -595,25 +593,19 @@ table_Unititle = Table('Unititle', metadata,
     Column('COMMENTS', String(255)))
 
 
-def createdb(args):
-    engine = create_engine('sqlite:///:memory:')
-    metadata.bind = engine
-    metadata.drop_all()
-    metadata.create_all()
-    for fn in os.listdir(args.src):
-        if fnmatch.fnmatch(fn, '*.tsv'):
-            filename = path.join(args.src, fn)
-            tablename = path.splitext(fn)[0]
-            print(tablename)
-            pandas.read_csv(filename, sep = '\t').\
-                to_sql(tablename, engine, if_exists = 'append', index = False)
-        
+def mssql_to_sqlite(args):
+    mssql_engine = create_engine("mssql+pyodbc://nps_cwss")
+    meta = MetaData()
+    meta.reflect(bind = mssql_engine)
+    sqlite_engine = create_engine("sqlite://:memory:")
+    
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('src', metavar = 'SRC', help = 'directory with input tsv files')    
     parser.add_argument('db', metavar = 'DB', help = 'SQLite database')
     args = parser.parse_args()
-    createdb(args)
+    #mssql_to_sqlite(args)
 
 if __name__ == '__main__':
     main()

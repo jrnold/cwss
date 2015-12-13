@@ -27,7 +27,7 @@ def clean(row):
 
 def dump_table(table, filename, header = True):
     cols = colnames(table)
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, 'wb', encoding='utf-8') as f:
         writer = csv.writer(f, cols, delimiter = '\t')
         if header:
             writer.writerow(cols)
@@ -41,6 +41,8 @@ def dump_to_csv(metadata, directory, header = True):
             outfn = path.join(directory, '%s.%s' % (tablename, EXT))
             print("dumping %s to %s" % (tablename, outfn))
             dump_table(table, outfn, header = header)
+            
+
      
 
 def main():
