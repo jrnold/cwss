@@ -100,6 +100,10 @@ The database's empty `sysdiagrams` table, which SQL Server uses internally, isn'
 - **Keys:** tables marked "none declared" have no primary key in the source database, so the build doesn't check their keys.
 - **Unmatched links:** not every link resolves. 1 of 236,519 `Soldiers_Memorial` rows and 559 of 2,616,137 `Soldiers_notez` rows have no match in `Soldiers_Personz`.
 
+## License
+
+The code in this repository is under the [MIT License](LICENSE). This doesn't cover the data.
+
 ## Schemas
 
 These come from the built SQLite database. The types are SQLite's, and the Parquet files use the matching DuckDB types.

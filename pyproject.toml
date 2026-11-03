@@ -3,6 +3,8 @@ name = "cwss"
 version = "0.1.0"
 description = "Civil War Soldiers and Sailors database from the National Park Service: tools to convert and archive it."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "dvc[gs]>=3.67.1",
