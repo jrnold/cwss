@@ -11,6 +11,9 @@ dependencies = [
     "pymssql>=2.4.6",
 ]
 
+[project.scripts]
+cwss-zenodo-upload = "cwss.zenodo:main"
+
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.8"]
 
