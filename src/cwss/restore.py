@@ -93,8 +93,10 @@ def restored_database(zip_path: Path, dockerfile: Path) -> Iterator[sa.Engine]:
         )
         port = int(_docker("port", container, "1433/tcp").rsplit(":", 1)[1])
         conn = _connect(port, password)
-        _restore(conn, f"/backup/{BACKUP_NAME}")
-        conn.close()
+        try:
+            _restore(conn, f"/backup/{BACKUP_NAME}")
+        finally:
+            conn.close()
         url = sa.URL.create(
             "mssql+pymssql",
             username="sa",
