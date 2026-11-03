@@ -1,0 +1,93 @@
+schema: '2.0'
+stages:
+  runtime-lock:
+    cmd: uv export --no-dev --frozen --no-header --no-emit-project -o 
+      requirements.lock
+    deps:
+    - path: uv.lock
+      hash: md5
+      md5: f13f6c0824831c4ed9ce56cbb252e4b8
+      size: 449075
+    outs:
+    - path: requirements.lock
+      hash: md5
+      md5: 4c48f62ca4e6deef2f978e6bff78cf15
+      size: 118201
+  sqlite:
+    cmd: uv run --frozen python -m scripts.build_sqlite
+    deps:
+    - path: data/raw/nps/CWSS.zip
+      hash: md5
+      md5: e31fb7235681f56d865cd3020e17614e
+      size: 819233967
+    - path: docker/mssql/Dockerfile
+      hash: md5
+      md5: 4b08b73a84fe0964cbae62766dd22871
+      size: 367
+    - path: requirements.lock
+      hash: md5
+      md5: 4c48f62ca4e6deef2f978e6bff78cf15
+      size: 118201
+    - path: scripts/build_sqlite.py
+      hash: md5
+      md5: f6353b3528d8fb1865e52774955e72d6
+      size: 433
+    - path: src/cwss/restore.py
+      hash: md5
+      md5: 2aef3cb532c8be6932b4643e4dc18d60
+      size: 3900
+    - path: src/cwss/to_sqlite.py
+      hash: md5
+      md5: 2f1de47f4c36802e4440b5b9d43ca765
+      size: 3140
+    outs:
+    - path: data/processed/nps_cwss.sqlite3
+      hash: md5
+      md5: 20f0204ba1b0f39bdec1c48c7e3f3291
+      size: 2190077952
+  parquet:
+    cmd: uv run --frozen python -m scripts.build_parquet
+    deps:
+    - path: data/processed/nps_cwss.sqlite3
+      hash: md5
+      md5: 20f0204ba1b0f39bdec1c48c7e3f3291
+      size: 2190077952
+    - path: requirements.lock
+      hash: md5
+      md5: 4c48f62ca4e6deef2f978e6bff78cf15
+      size: 118201
+    - path: scripts/build_parquet.py
+      hash: md5
+      md5: 753d04fe2b7da697998b2700381ba691
+      size: 255
+    - path: src/cwss/to_parquet.py
+      hash: md5
+      md5: bdbf6dee4152681c665faaad9fb84db9
+      size: 3509
+    outs:
+    - path: data/processed/parquet
+      hash: md5
+      md5: e71378c7cd0d925d0b16b6f0c00c678a.dir
+      size: 147549121
+      nfiles: 30
+  package:
+    cmd: uv run --frozen python -m scripts.package
+    deps:
+    - path: data/processed/parquet
+      hash: md5
+      md5: e71378c7cd0d925d0b16b6f0c00c678a.dir
+      size: 147549121
+      nfiles: 30
+    - path: scripts/package.py
+      hash: md5
+      md5: cc7d4b45edd16a3e24f2ddfaeb5b4de3
+      size: 254
+    - path: src/cwss/to_parquet.py
+      hash: md5
+      md5: bdbf6dee4152681c665faaad9fb84db9
+      size: 3509
+    outs:
+    - path: data/processed/cwss-parquet.tar
+      hash: md5
+      md5: 778c6433a42778aa098bfbcff3a8e5b6
+      size: 147578880

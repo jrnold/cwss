@@ -8,3 +8,36 @@ stages:
     outs:
       - requirements.lock:
           cache: false
+
+  # Restores the backup in the SQL Server container defined by the Dockerfile, so Docker must be
+  # running, and `unzip` must be installed.
+  sqlite:
+    cmd: uv run --frozen python -m scripts.build_sqlite
+    deps:
+      - data/raw/nps/CWSS.zip
+      - docker/mssql/Dockerfile
+      - src/cwss/restore.py
+      - src/cwss/to_sqlite.py
+      - scripts/build_sqlite.py
+      - requirements.lock
+    outs:
+      - data/processed/nps_cwss.sqlite3
+
+  parquet:
+    cmd: uv run --frozen python -m scripts.build_parquet
+    deps:
+      - data/processed/nps_cwss.sqlite3
+      - src/cwss/to_parquet.py
+      - scripts/build_parquet.py
+      - requirements.lock
+    outs:
+      - data/processed/parquet
+
+  package:
+    cmd: uv run --frozen python -m scripts.package
+    deps:
+      - data/processed/parquet
+      - src/cwss/to_parquet.py
+      - scripts/package.py
+    outs:
+      - data/processed/cwss-parquet.tar

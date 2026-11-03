@@ -8,6 +8,7 @@ dependencies = [
     "dvc[gs]>=3.67.1",
     "duckdb>=1.1",
     "sqlalchemy>=2.1.6",
+    "pymssql>=2.4.6",
 ]
 
 [dependency-groups]
