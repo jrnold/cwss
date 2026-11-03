@@ -102,7 +102,9 @@ The database's empty `sysdiagrams` table, which SQL Server uses internally, isn'
 
 ## License
 
-The code in this repository is under the [MIT License](LICENSE). This doesn't cover the data.
+- `CWSS.zip`: public domain, as a US government work.
+- `nps_cwss.sqlite3` and `cwss-parquet.tar`: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+- The code in this repository: [MIT License](LICENSE).
 
 ## Schemas
 

@@ -5,6 +5,10 @@ Zenodo doesn't allow the files of a published version to change.
 
     uv run --env-file .env cwss-zenodo-upload
     uv run --env-file .env cwss-zenodo-upload --publish
+    uv run --env-file .env cwss-zenodo-upload --update-metadata
+
+The deposit API takes one license per record, so run --update-metadata after publishing to set
+both of the record's licenses. It can change a published record's metadata, not its files.
 """
 
 import argparse
@@ -19,6 +23,9 @@ from typing import Any
 
 DEPOSITION = 23905004
 API = "https://zenodo.org/api/deposit/depositions"
+RECORDS_API = "https://zenodo.org/api/records"
+RECORD_JSON = "application/vnd.inveniordm.v1+json"
+RIGHTS = ["other-pd", "cc0-1.0"]
 FILES = [
     Path("data/raw/nps/CWSS.zip"),
     Path("data/processed/nps_cwss.sqlite3"),
@@ -44,6 +51,13 @@ Server backup <code>nps_cwss-20121031.bak</code> and the original XML and CSV fi
 </ul>
 <p>The derived files were made by restoring the backup in SQL Server and copying each table. The \
 code and table documentation are in <a href="{REPO_URL}">{REPO_URL}</a>.</p>
+<p><b>Licenses</b></p>
+<ul>
+<li><code>CWSS.zip</code>: public domain, as a US government work.</li>
+<li><code>nps_cwss.sqlite3</code> and <code>cwss-parquet.tar</code>: \
+<a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>.</li>
+<li>The code in the GitHub repository: MIT.</li>
+</ul>
 """
 
 
@@ -87,6 +101,7 @@ def request(
     token: str,
     method: str = "GET",
     payload: dict[str, Any] | None = None,
+    accept: str | None = None,
 ) -> dict[str, Any]:
     """Send a JSON request and return the JSON response."""
     data = None if payload is None else json.dumps(payload).encode()
@@ -94,6 +109,8 @@ def request(
     req.add_header("Authorization", f"Bearer {token}")
     if data is not None:
         req.add_header("Content-Type", "application/json")
+    if accept is not None:
+        req.add_header("Accept", accept)
     try:
         with urllib.request.urlopen(req) as response:  # noqa: S310
             return json.load(response)
@@ -120,13 +137,35 @@ def check_checksum(path: Path, reported: str) -> None:
         raise RuntimeError(f"{path.name}: Zenodo reports {reported}, local md5 is {expected}")
 
 
+def update_published_metadata(record: int, token: str) -> dict[str, Any]:
+    """Set the description and licenses on a published record, leaving its files alone."""
+    url = f"{RECORDS_API}/{record}/draft"
+    draft = request(url, token, method="POST", accept=RECORD_JSON)
+    draft["metadata"]["description"] = DESCRIPTION
+    draft["metadata"]["rights"] = [{"id": right} for right in RIGHTS]
+    keep = ("access", "custom_fields", "files", "metadata", "pids")
+    payload = {key: draft[key] for key in keep if key in draft}
+    request(url, token, method="PUT", payload=payload, accept=RECORD_JSON)
+    return request(f"{url}/actions/publish", token, method="POST", accept=RECORD_JSON)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--deposition", type=int, default=DEPOSITION, help="Zenodo draft id")
     parser.add_argument("--publish", action="store_true", help="publish the draft as it stands")
+    parser.add_argument(
+        "--update-metadata",
+        action="store_true",
+        help="set the description and licenses on the published record",
+    )
     args = parser.parse_args()
     token = os.environ["ZENODO_API_KEY"]
     url = f"{API}/{args.deposition}"
+
+    if args.update_metadata:
+        done = update_published_metadata(args.deposition, token)
+        print(f"updated {done['id']}: {[right['id'] for right in done['metadata']['rights']]}")
+        return
 
     if args.publish:
         done = request(f"{url}/actions/publish", token, method="POST")

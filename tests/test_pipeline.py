@@ -250,3 +250,29 @@ def test_zenodo_request_reports_the_response_body(monkeypatch):
     monkeypatch.setattr(zenodo.urllib.request, "urlopen", fake_urlopen)
     with pytest.raises(RuntimeError, match="400 bad license"):
         zenodo.request("https://api", "token", method="PUT", payload={})
+
+
+def test_zenodo_update_metadata_sets_both_licenses_and_keeps_files(monkeypatch):
+    calls = []
+
+    def fake_request(url, token, method="GET", payload=None, accept=None):
+        calls.append((method, url, payload))
+        return {
+            "id": "1",
+            "metadata": {"title": "t", "rights": [{"id": "other-pd"}]},
+            "files": {"enabled": True},
+            "pids": {"doi": {"identifier": "10.5281/zenodo.1"}},
+            "links": {"self": "dropped"},
+        }
+
+    monkeypatch.setattr(zenodo, "request", fake_request)
+    zenodo.update_published_metadata(1, "token")
+
+    assert [method for method, _, _ in calls] == ["POST", "PUT", "POST"]
+    sent = calls[1][2]
+    assert sent["metadata"]["rights"] == [{"id": "other-pd"}, {"id": "cc0-1.0"}]
+    assert sent["metadata"]["title"] == "t"
+    assert sent["files"] == {"enabled": True}
+    assert sent["pids"] == {"doi": {"identifier": "10.5281/zenodo.1"}}
+    assert "links" not in sent
+    assert calls[2][1].endswith("/draft/actions/publish")
