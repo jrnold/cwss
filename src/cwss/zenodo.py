@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import json
 import os
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -93,8 +94,12 @@ def request(
     req.add_header("Authorization", f"Bearer {token}")
     if data is not None:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req) as response:  # noqa: S310
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(req) as response:  # noqa: S310
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        # Zenodo explains validation failures in the response body.
+        raise RuntimeError(f"{method} {url}: {error.code} {error.read().decode()}") from error
 
 
 def upload_file(bucket: str, path: Path, token: str) -> dict[str, Any]:
@@ -129,11 +134,16 @@ def main() -> None:
         return
 
     draft = request(url, token)
+    # Send the metadata first, so a rejection doesn't come after gigabytes of uploads.
+    request(url, token, method="PUT", payload={"metadata": metadata(datetime.date.today())})
+    existing = {f["filename"]: f["checksum"].removeprefix("md5:") for f in draft.get("files", [])}
     for path in FILES:
+        if existing.get(path.name) == md5(path):
+            print(f"already on the draft: {path}", flush=True)
+            continue
         print(f"uploading {path} ({path.stat().st_size} bytes)", flush=True)
         uploaded = upload_file(draft["links"]["bucket"], path, token)
         check_checksum(path, uploaded["checksum"])
-    request(url, token, method="PUT", payload={"metadata": metadata(datetime.date.today())})
     print(f"draft updated, not published: {draft['links']['html']}")
 
 

@@ -1,8 +1,10 @@
 """Tests that need no Docker or SQL Server: type mapping, copying, key checks and packaging."""
 
 import hashlib
+import io
 import sqlite3
 import stat
+import urllib.error
 import uuid
 import zipfile
 
@@ -163,17 +165,88 @@ def test_zenodo_checksum_rejects_a_mismatch(tmp_path):
         check_checksum(path, "md5:00000000000000000000000000000000")
 
 
-def test_zenodo_upload_never_publishes_without_the_flag(monkeypatch):
-    urls = []
+class FakeResponse(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+@pytest.fixture
+def zenodo_calls(monkeypatch, tmp_path):
+    """Run the uploader against a fake API, with one file already on the draft."""
+    on_draft = tmp_path / "on_draft.bin"
+    on_draft.write_bytes(b"same")
+    new = tmp_path / "new.bin"
+    new.write_bytes(b"new")
+    calls = []
 
     def fake_request(url, token, method="GET", payload=None):
-        urls.append(url)
-        return {"links": {"bucket": "https://bucket", "html": "https://draft"}}
+        calls.append((method, url))
+        return {
+            "doi": "10.5281/zenodo.1",
+            "links": {"bucket": "https://bucket", "html": "https://draft", "record_html": "r"},
+            "files": [{"filename": on_draft.name, "checksum": zenodo.md5(on_draft)}],
+        }
+
+    def fake_upload(bucket, path, token):
+        calls.append(("UPLOAD", path.name))
+        return {"checksum": f"md5:{zenodo.md5(path)}"}
 
     monkeypatch.setattr(zenodo, "request", fake_request)
-    monkeypatch.setattr(zenodo, "FILES", [])
-    monkeypatch.setattr("sys.argv", ["cwss-zenodo-upload"])
+    monkeypatch.setattr(zenodo, "upload_file", fake_upload)
+    monkeypatch.setattr(zenodo, "FILES", [on_draft, new])
     monkeypatch.setenv("ZENODO_API_KEY", "token")
+    return calls
+
+
+def test_zenodo_upload_sends_metadata_first_and_never_publishes(monkeypatch, zenodo_calls):
+    monkeypatch.setattr("sys.argv", ["cwss-zenodo-upload"])
     zenodo.main()
-    assert urls
-    assert not any("publish" in url for url in urls)
+    methods = [method for method, _ in zenodo_calls]
+    assert methods == ["GET", "PUT", "UPLOAD"]
+    assert not any("publish" in url for _, url in zenodo_calls)
+
+
+def test_zenodo_upload_skips_files_already_on_the_draft(monkeypatch, zenodo_calls):
+    monkeypatch.setattr("sys.argv", ["cwss-zenodo-upload"])
+    zenodo.main()
+    assert ("UPLOAD", "new.bin") in zenodo_calls
+    assert ("UPLOAD", "on_draft.bin") not in zenodo_calls
+
+
+def test_zenodo_publish_only_publishes(monkeypatch, zenodo_calls):
+    monkeypatch.setattr("sys.argv", ["cwss-zenodo-upload", "--publish"])
+    zenodo.main()
+    assert len(zenodo_calls) == 1
+    method, url = zenodo_calls[0]
+    assert method == "POST"
+    assert url.endswith("/actions/publish")
+
+
+def test_zenodo_upload_streams_with_content_length(monkeypatch, tmp_path):
+    path = tmp_path / "file.bin"
+    path.write_bytes(b"12345")
+    seen = {}
+
+    def fake_urlopen(req, timeout=None):
+        seen.update(url=req.full_url, method=req.method, headers=dict(req.header_items()))
+        seen["body"] = req.data.read()
+        return FakeResponse(b'{"checksum": "md5:x"}')
+
+    monkeypatch.setattr(zenodo.urllib.request, "urlopen", fake_urlopen)
+    assert zenodo.upload_file("https://bucket", path, "token") == {"checksum": "md5:x"}
+    assert seen["url"] == "https://bucket/file.bin"
+    assert seen["method"] == "PUT"
+    assert seen["headers"]["Content-length"] == "5"
+    assert seen["body"] == b"12345"
+
+
+def test_zenodo_request_reports_the_response_body(monkeypatch):
+    def fake_urlopen(req):
+        raise urllib.error.HTTPError(req.full_url, 400, "bad", {}, io.BytesIO(b"bad license"))
+
+    monkeypatch.setattr(zenodo.urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(RuntimeError, match="400 bad license"):
+        zenodo.request("https://api", "token", method="PUT", payload={})
