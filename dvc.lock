@@ -22,8 +22,8 @@ stages:
       size: 819233967
     - path: docker/mssql/Dockerfile
       hash: md5
-      md5: 4b08b73a84fe0964cbae62766dd22871
-      size: 367
+      md5: cf1f021a69255eba0ba230cc981ba201
+      size: 439
     - path: requirements.lock
       hash: md5
       md5: 4c48f62ca4e6deef2f978e6bff78cf15
