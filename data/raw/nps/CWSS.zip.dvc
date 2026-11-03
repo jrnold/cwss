@@ -1,0 +1,12 @@
+md5: 26297a3bda65cf06d7a8c6433c7b076a
+frozen: true
+deps:
+- checksum: '"5b76eff9ee95d71:0"'
+  size: 819233967
+  hash: md5
+  path: https://www.nps.gov/featurecontent/foia/CWSS.zip
+outs:
+- md5: e31fb7235681f56d865cd3020e17614e
+  size: 819233967
+  hash: md5
+  path: CWSS.zip
