@@ -11,4 +11,10 @@ project type is empirical. This directory is its own DVC project, so run `dvc` f
 - Never run `dvc gc`, and never `git add` a DVC-tracked path.
 
 Exceptions to the baseline, one line each, in the form `Exception to P1: reason`. `data-audit` reads
-these lines and reports the rule as accepted. There are none yet.
+these lines and reports the rule as accepted. 
+Exception to F3: `data/processed/nps_cwss.sqlite3` is SQLite because it's a distribution copy of the database. Every table is also in `data/processed/parquet/`.
+
+## Build
+
+- The `sqlite` stage needs Docker running and `unzip`. It restores the NPS backup in a throwaway SQL Server container.
+- Don't publish to Zenodo without the user's explicit confirmation, because a published version can't be changed.
