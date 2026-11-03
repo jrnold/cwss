@@ -1,6 +1,8 @@
 # Civil War Soldiers and Sailors Database
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23905004.svg)](https://doi.org/10.5281/zenodo.23905004)
+[![Data: CC0 1.0](https://img.shields.io/badge/data-CC0%201.0-lightgrey.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+[![Code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 
 Data from the National Park Service's (NPS) [Civil War Soldiers and Sailors System](https://www.nps.gov/civilwar/soldiers-and-sailors-database.htm), and the code that turns its SQL Server backup into SQLite and Parquet files you can use without SQL Server.
 
