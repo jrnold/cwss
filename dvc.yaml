@@ -1,0 +1,10 @@
+stages:
+  # Stages depend on the runtime packages only, so adding a dev tool doesn't make them stale: this
+  # stage reruns, its output is unchanged, and DVC skips everything downstream.
+  runtime-lock:
+    cmd: uv export --no-dev --frozen --no-header --no-emit-project -o requirements.lock
+    deps:
+      - uv.lock
+    outs:
+      - requirements.lock:
+          cache: false

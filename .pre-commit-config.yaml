@@ -1,0 +1,16 @@
+# Add to <project>/.pre-commit-config.yaml. Blocks a git push while any DVC output is in the local
+# cache but not on the remote (rule W1). "deleted" and "missing" entries only mean this worktree
+# hasn't pulled that data, so they pass. A failure to reach the remote also blocks the push.
+repos:
+  - repo: local
+    hooks:
+      - id: dvc-pushed
+        name: DVC outputs are on the remote
+        language: system
+        entry: >-
+          bash -c 'out="$(dvc status --cloud --json)" || exit 1;
+          if grep -q "\"new\"" <<<"${out}"; then
+          echo "Run dvc push first. Not on the remote: ${out}"; exit 1; fi'
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
