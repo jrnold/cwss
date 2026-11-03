@@ -1,7 +1,7 @@
 [project]
 name = "cwss"
 version = "0.1.0"
-description = "Civil War Soldiers and Sailors database from the National Park Service: tools to dump, convert and archive it."
+description = "Civil War Soldiers and Sailors database from the National Park Service: tools to convert and archive it."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -29,5 +29,3 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-# createdb.py is a long list of table definitions
-per-file-ignores = { "src/cwss/createdb.py" = ["E501"] }

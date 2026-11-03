@@ -1,4 +1,4 @@
-# Add to <project>/.pre-commit-config.yaml. Blocks a git push while any DVC output is in the local
+# Blocks a git push while any DVC output is in the local
 # cache but not on the remote (rule W1). "deleted" and "missing" entries only mean this worktree
 # hasn't pulled that data, so they pass. A failure to reach the remote also blocks the push.
 repos:

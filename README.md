@@ -42,7 +42,7 @@ data/raw/nps/CWSS.zip
 
 `src/cwss/zenodo.py` (`cwss-zenodo-upload`) uploads the three files to the Zenodo draft. It isn't a pipeline stage. Publishing needs its own `--publish` flag, because a published version can't be changed.
 
-To rebuild, you need [uv](https://docs.astral.sh/uv/), Docker and `unzip`:
+To rebuild, you need [uv](https://docs.astral.sh/uv/), Docker, `unzip` and network access. The `sqlite` stage pulls the SQL Server image, and the `parquet` stage downloads DuckDB's SQLite extension.
 
 ```console
 $ uv sync
@@ -96,6 +96,7 @@ The database's empty `sysdiagrams` table, which SQL Server uses internally, isn'
 - **Placeholder dates:** some date columns hold `1753-01-01`, the earliest date a SQL Server `datetime` allows. Treat it as missing.
 - **Padding:** fixed-width codes can have trailing spaces, such as `'CS        '`. Trim them before joining.
 - **Keys:** tables marked "none declared" have no primary key in the source database, so the build doesn't check their keys.
+- **Unmatched links:** not every link resolves. 1 of 236,519 `Soldiers_Memorial` rows and 559 of 2,616,137 `Soldiers_notez` rows have no match in `Soldiers_Personz`.
 
 ## Schemas
 
