@@ -4,6 +4,7 @@ import sqlite3
 import os
 import fnmatch
 import csv
+from datetime import datetime
 from os import path
 
 from sqlalchemy import (create_engine, Table, Column, MetaData, String, Float,
@@ -11,14 +12,20 @@ from sqlalchemy import (create_engine, Table, Column, MetaData, String, Float,
 
 metadata = MetaData()
 
-def clean_row(row):
-    for k, v in row.items():
-        if v == '':
-            row[k] = None
-        elif v == 'False':
-            row[k] = 0
-        elif v == 'True':
-            row[k] = 1
+def clean_row(row, table):
+    """Convert tsv text to values: '' is NULL unless the column is NOT NULL, booleans become 0/1.
+
+    The tsv dump wrote NULL and '' the same way, so '' stays '' in NOT NULL columns.
+    """
+    for col in table.columns:
+        v = row.get(col.name)
+        if v == "":
+            row[col.name] = None if col.nullable else ""
+        elif v == "False":
+            row[col.name] = 0
+        elif v == "True":
+            row[col.name] = 1
+
 
 table_Category = Table('Category', metadata,
     Column('PK_ID', Integer() , primary_key = True),
@@ -603,40 +610,51 @@ table_Unititle = Table('Unititle', metadata,
     Column('COMMENTS', String(255)))
 
 
-# def mssql_to_sqlite(args):
-#     mssql_engine = create_engine("mssql+pyodbc://nps_cwss")
-#     meta = MetaData()
-#     meta.reflect(bind = mssql_engine)
-#     sqlite_engine = create_engine("sqlite://:memory:")
+def convert_row(row, table):
+    """Parse datetime text in `row`, since SQLAlchemy 2 won't accept strings for DateTime."""
+    for col in table.columns:
+        if isinstance(col.type, DateTime) and row.get(col.name) is not None:
+            row[col.name] = datetime.fromisoformat(row[col.name])
 
-def tsv_to_sqlite(filename, table):
-    ins = metadata.tables[table].insert()
-    con = metadata.bind.connect()
-    print("Loading %s into table %s" % (filename, table))
-    with open(filename, 'r') as f:
-        reader = csv.DictReader(f, delimiter = '\t')
+
+def tsv_to_sqlite(conn, filename, table):
+    """Load one tsv file into the named table."""
+    tbl = metadata.tables[table]
+    ins = tbl.insert()
+    print(f"Loading {filename} into table {table}")
+    with open(filename, encoding="utf-8", newline="") as f:
+        rows = []
+        reader = csv.DictReader(f, delimiter="\t")
+        # SQL Server column names are case-insensitive, so the header may differ in case
+        names = {c.name.lower(): c.name for c in tbl.columns}
+        reader.fieldnames = [names.get(h.lower(), h) for h in reader.fieldnames]
         for row in reader:
-            clean_row(row)
-            con.execute(ins, **row)
+            clean_row(row, tbl)
+            convert_row(row, tbl)
+            rows.append(row)
+    if rows:
+        conn.execute(ins, rows)
+
 
 def tsv_to_sqlite_multi(src, db):
+    """Load every table in `src` (a directory of tsv files) into the database `db`."""
     engine = create_engine(db)
-    metadata.bind = engine
-    metadata.drop_all()
-    metadata.create_all()
-    for filename in os.listdir(src):
-        if fnmatch.fnmatch(filename, "*.tsv"):
-            fname = path.join(src, filename)
+    metadata.drop_all(engine)
+    metadata.create_all(engine)
+    with engine.begin() as conn:
+        for filename in sorted(os.listdir(src)):
             table = path.splitext(filename)[0]
-            tsv_to_sqlite(fname, table)
+            if fnmatch.fnmatch(filename, "*.tsv") and table in metadata.tables:
+                tsv_to_sqlite(conn, path.join(src, filename), table)
+
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('src', metavar = 'SRC', help = 'directory with input tsv files')    
-    parser.add_argument('db', metavar = 'DB', help = 'SQLite database')
+    parser = argparse.ArgumentParser(description="Load CWSS tsv files into a SQLite database.")
+    parser.add_argument("src", metavar="SRC", help="directory with input tsv files")
+    parser.add_argument("db", metavar="DB", help="SQLAlchemy URL, e.g. sqlite:///nps_cwss.sqlite3")
     args = parser.parse_args()
-    tsv_to_sqlite_multi(args.SRC, args.DB)
+    tsv_to_sqlite_multi(args.src, args.db)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
-
